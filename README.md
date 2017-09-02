@@ -1077,14 +1077,18 @@ exports.updateStore = async (req, res) => {
 
 ## 18 - Uploading and Resizing Images with Middleware
 
-1. 为了上传并调整图片的大小，需要引入一些外部的包。`Multer`用来上传文件，`GIMP`用来 resize 图片的大小。为了向服务器发送文件，为 form 添加属性`enctype="multipart/form-data"`
+1. 为了向服务器发送文件，为 form 添加属性`enctype="multipart/form-data"`
 
 ```jade
 //- views/mixins/_storeForm.pug
 form(action=`/add/${store._id || ''}` method="POST" class="card" enctype="multipart/form-data")
+
+//- Image Upload
+label(for="photo") Photo
+  input(type="file" name="photo" id="photo" accept="image/gif, image/png, image/jpeg")
 ```
 
-2. 
+2. 为了上传并调整图片的大小，需要引入一些外部的包。`Multer`用来上传文件。
 
 ```js
 // controllers/storeController.js
@@ -1104,5 +1108,56 @@ const multerOptions = {
 ...
 
 exports.upload = multer(multerOptions).single('photo');
+```
+
+3. `GIMP`用来 resize 图片的大小。'uuid'用来重命名图片。
+
+```js
+// controllers/storeController.js
+const jimp = require('jimp');
+const uuid = require('uuid');
+
+exports.resize = async (req, res, next) => {
+  // check if there is no new file to resize
+  if (!req.file) {
+    next(); // skip to the next middleware
+    return;
+  }
+  // console.log(req.file);
+  const extension = req.file.mimetype.split('/')[1];
+  req.body.photo = `${uuid.v4()}.${extension}`;
+  // now we resize
+  const photo = await jimp.read(req.file.buffer);
+  await photo.resize(800, jimp.AUTO);
+  await photo.write(`./public/uploads/${req.body.photo}`);
+  // once we have written the photo to the filesystem, keep going!
+  next();
+}
+```
+
+4. 为保存的图片在数据库中添加 Schema，这样才会被保存并显示。
+
+```js
+const storeSchema = new mongoose.Schema({
+  ...
+  photo: String
+})
+```
+
+5. 修改 routes
+
+```js
+// routes/index.js
+router.post('/add',
+  storeController.upload,
+  catchErrors(storeController.resize),
+  catchErrors(storeController.createStore)
+);
+
+router.post('/add/:id',
+  storeController.upload,
+  catchErrors(storeController.resize),
+  catchErrors(storeController.updateStore)
+);
 ```
 
