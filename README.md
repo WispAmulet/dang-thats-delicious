@@ -1223,3 +1223,48 @@ storeSchema.pre('save', async function(next) {
   ...
 })
 ```
+
+
+## 21 - Custom MongoDB Aggregations
+
+1. 创建`/tags`页面
+
+```js
+// routes/index.js
+router.get('/tags', catchErrors(storeController.getStoresByTag));
+router.get('/tags/:tag', catchErrors(storeController.getStoresByTag));
+
+// controllers/storeController.js
+exports.getStoresByTag = async (req, res) => {
+  // res.send('It works!');
+  const tags = await Store.getTagsList();
+  res.render('tag', { tags, title: 'Tags' });
+};
+
+// models/Store.js
+...
+storeSchema.statics.getTagsList = function () {
+  return this.aggregate([
+    { $unwind: '$tags' },
+    { $group: { _id: '$tags', count: { $sum: 1 } } },
+    { $sort: { count: -1 } }
+  ]);
+}
+```
+
+2. 创建`tag.pug`
+
+```jade
+//- views/tag.pug
+extends layout
+
+block content
+  .inner
+    h2 #{tag || 'Tags'}
+    ul.tags
+      each t in tags
+        li.tag
+          a.tag__link(href=`/tags/${t._id}` class=(t._id === tag ? 'tag__link--active' : ''))
+            span.tag__text= t._id
+            span.tag__count= t.count
+```
