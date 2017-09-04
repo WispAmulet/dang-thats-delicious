@@ -1161,3 +1161,45 @@ router.post('/add/:id',
 );
 ```
 
+
+## 19 - Routing and Templating Single Stores
+
+1. 为每个商店创建具体的页面
+
+```js
+// routes/index.js
+router.get('/store/:slug', catchErrors(storeController.getStoreBySlug));
+
+// controllers/storeController.js
+exports.getStoreBySlug = async (req, res) => {
+  // res.send('It works!');
+  const store = await Store.findOne({ slug: req.params.slug });
+  if (!store) return next();
+  res.render('store', { store, title: store.name });
+};
+```
+
+2. 修改页面样式
+
+```jade
+//- views/store.pug
+extends layout
+
+block content
+  .single
+    .single__hero
+      img.single__image(src=`/uploads/${store.photo || 'store.png'}`)
+      h2.title.title--single
+        a(href=`/store/${store.slug}`) #{store.name}
+  .single__details.inner
+    img.single__map(src=h.staticMap(store.location.coordinates))
+    p.single__location= store.location.address
+    p= store.description
+
+    if store.tags
+      ul.tags
+        each tag in store.tags
+          li.tag
+            a.tag__link(href=`/tags/${tag}`)
+              span.tag__text #{tag}
+```
