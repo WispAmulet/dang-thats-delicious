@@ -1207,4 +1207,19 @@ block content
 
 ## 20 - Using Pre-Save hooks to make Unique Slugs
 
-1. 
+1. 为名字相同的 Store 创建不同的 slug
+
+```js
+// models/Store.js
+storeSchema.pre('save', async function(next) {
+  ...
+  this.slug = slug(this.name);
+  // find other stores that have a slug of wes, wes-1, wes-2
+  const slugRegEx = new RegExp(`^(${this.slug})((-[0-9]*$)?)$`, 'i');
+  const storesWithSlug = await this.constructor.find({ slug: slugRegEx });
+  if (storesWithSlug.length) {
+    this.slug = `${this.slug}-${storesWithSlug.length + 1}`;
+  }
+  ...
+})
+```
