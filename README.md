@@ -1307,3 +1307,16 @@ include mixins/_storeCard
   each store in stores
     +storeCard(store)
 ```
+
+3. 直接进入`/tags`页面时，由于没有选择某一个 tag，页面上并不显示任何商店，修改如下
+
+```js
+// controllers/storeController.js
+exports.getStoresByTag = async (req, res) => {
+  ...
+  const tagQuery = tag || { $exists: true };
+  ...
+  const storesPromise = Store.find({ tags: tagQuery });
+  ...
+};
+```
