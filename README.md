@@ -1268,3 +1268,42 @@ block content
             span.tag__text= t._id
             span.tag__count= t.count
 ```
+
+
+## 22 - Multiple Query Promises with Async-Await
+
+1. 查询 tags 的同时，还需要查询 tags 对应的商店。为了让它们同时进行，修改`getStoresByTag()`
+
+```js
+// controllers/storeController.js
+exports.getStoresByTag = async (req, res) => {
+  const tag = req.params.tag;
+  const tagsPromise = Store.getTagsList();
+  const storesPromise = Store.find({ tags: tag });
+  const result = await Promise.all([tagsPromise, storesPromise]);
+  res.json(result);
+  // res.render('tag', { tags, title: 'Tags', tag });
+};
+
+// 解构之后
+exports.getStoresByTag = async (req, res) => {
+  ...
+  const [tags, stores] = await Promise.all([tagsPromise, storesPromise]);
+  res.render('tag', { tag, title: 'Tags', tags, stores });
+}
+```
+
+2. 修改`tag.pug`以显示 stores
+
+```jade
+//- views/tag.pug
+extends layout
+
+include mixins/_storeCard
+
+//-...
+
+.stores
+  each store in stores
+    +storeCard(store)
+```
