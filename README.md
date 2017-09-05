@@ -1320,3 +1320,106 @@ exports.getStoresByTag = async (req, res) => {
   ...
 };
 ```
+
+
+## 23 - Creating User Accounts
+
+1. 添加`/login`页面
+
+```js
+// routes/index.js
+const userController = require('../controllers/userController');
+...
+router.get('/login'. userController.loginForm);
+
+// controllers/userController.js
+const mongoose = require('mongoose');
+
+exports.loginForm = (req, res) => {
+  res.render('login', { title: 'Login' });
+};
+```
+
+```jade
+//- views/login.pug
+extends layout
+
+include mixins/_loginForm
+
+block content
+  .inner
+    +loginForm()
+
+//- views/mixins/_loginForm.pug
+mixin loginForm()
+  form.form(action="/login" method="POST")
+    h2 Login
+    label(for="email") Email
+    input(type="email" name="email")
+    label(for="password") Password
+    input(type="password" name="password")
+    input.button(type="submit" value="Log In →")
+```
+
+2. 为了保存数据，创建`models/User.js`
+
+```js
+const mongoose = require('mongoose');
+mongoose.Promise = global.Promise;
+const md5 = require('md5');
+const validator = require('validator');
+const mongodbErrorHandler = require('mongoose-mongodb-errors');
+const passportLocalMongoose = require('password-local-mongoose');
+
+const userSchema = new mongoose.Schema({
+  email: {
+    type: String,
+    unique: true,
+    lowercase: true,
+    trim: true,
+    validate: [validator.isEmail, 'Invalid Email Address'],
+    required: 'Please supply an email address!'
+  },
+  name: {
+    type: String,
+    required: 'Please supply a name!',
+    trim: true
+  }
+});
+
+userSchema.plugin(passportLocalMongoose, { usernameField: 'email' });
+userSchema.plugin(mongodbErrorHandler);
+
+module.exports = mongoose.model('User', userSchema);
+```
+
+3. 添加`/register`页面
+
+```js
+// routes/index.js
+router.get('/register', userController.registerForm);
+
+// controllers/userController.js
+exports.registerForm = (req, res) => {
+  res.render('register', { title: 'Register' });
+}
+```
+
+```jade
+//- views/register.pug
+extends layout
+
+block content
+  .inner
+    form.form(action="/register" method="POST")
+      h2 Register
+      label(for="name") Name
+      input(type="text" name="name" required)
+      label(for="email") Email
+      input(type="text" name="email" required)
+      label(for="password") Password
+      input(type="text" name="password")
+      label(for="password-confirm") Confirm Password
+      input(type="text" name="password-confirm")
+      input.button(type="submit" value="Register →")
+```
