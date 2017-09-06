@@ -1453,3 +1453,76 @@ exports.validateRegister = (req, res, next) => {
   next();  // there were no errors
 };
 ```
+
+
+## 24 - Saving Registered Users to the Database
+
+1. 验证注册信息之后要保存信息，修改`routes`
+
+```js
+// routes/index.js
+router.post('/register',
+  userController.validateRegister,
+  catchErrors(userController.register)
+);
+
+// controllers/UserController.js
+const User = mongoose.model('User');
+const promisify = require('es6-promisify');
+...
+exports.register = async (req, res, next) => {
+  const user = new User({ email: req.body.email, name: req.body.name });
+  // User.register(user, req.body.password, function (err, user) {
+
+  // });
+  const register = promisify(User.register, User);
+  await register(user, req.body.password);
+  res.send('it works!');
+  next(); // pass to authController.login
+}
+
+// start.js
+require('./models/User');
+```
+
+2. 创建`controllers/authController.js`
+
+```js
+// controllers/authController.js
+const passport = require('passport');
+
+exports.login = passport.authenticate('local', {
+  failureRedirect: '/login',
+  failureFlash: 'Failed Login!',
+  successRedirect: '/',
+  successFlash: 'You are now logged in!'
+});
+
+// routes/index.js
+const authController = require('../controllers//authController');
+...
+router.post('/register',
+  userController.validateRegister,
+  catchErrors(userController.register),
+  authController.login
+);
+```
+
+3. 创建`passport.js`
+
+```js
+// handler/passport.js
+const passport = require('passport');
+const mongoose = require('mongoose');
+const User = mongoose.model('User');
+
+passport.use(User.createStrategy());
+
+passport.serializeUser(User.serializeUser());
+passport.deserializeUser(USer.deserializeUser());
+
+// app.js
+...
+require('./handlers/passport');
+...
+```
