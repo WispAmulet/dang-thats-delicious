@@ -1526,3 +1526,63 @@ passport.deserializeUser(USer.deserializeUser());
 require('./handlers/passport');
 ...
 ```
+
+
+## 25 - Virtual Fields, Login-Logout middleware and Protecting Routes
+
+1. 添加`/logout`
+
+```js
+// controllers/authController.js
+exports.logout = (req, res) => {
+  req.logout();
+  req.flash('success', 'You are now logged out!');
+  res.redirect('/');
+}
+
+// routes/index.js
+router.get('/logout', authController.logout);
+```
+
+2. 添加 POST `/login`
+
+```js
+// routes/index.js
+router.post('/login', authController.login);
+```
+
+3. 使用 Virtual Field 为用户添加头像
+
+```jade
+//- views/layout.pug
+img.avatar(src=user.gravatar + 'd=retro')
+```
+
+```js
+// models/User.js
+userSchema.virtual('gravatar').get(function () {
+  const hash = md5(this.email);
+  return `https://gravatar.com/avatar/${hash}?s=200`;
+});
+```
+
+4. 只有登陆的用户才能添加 Store
+
+```js
+// controllers/authController.js
+exports.isLoggedIn = (req, res, next) => {
+  // first check if the user is authenticated
+  if (req.isAuthenticated()) {
+    next(); // carry on! They are logged in!
+    return;
+  }
+  req.flash('error', 'Oops! You must be logged in to do that!');
+  res.redirect('/login');
+};
+
+// routes/index.js
+router.get('/add',
+  authController.isLoggedIn,
+  storeController.addStore
+);
+```
