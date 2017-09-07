@@ -1621,10 +1621,161 @@ block content
 
 ```js
 // routes/index.js
-router.post('account', userController.updateAccount);
+router.post('account', catchErrors(userController.updateAccount));
 
 // controllers/userController.js
-exports.updateAccount = (req, res) => {
-  
+exports.updateAccount = async (req, res) => {
+  const updates = {
+    name: req.body.name,
+    email: req.body.email
+  };
+
+  const user = await User.findOneAndUpdate(
+    { _id: req.user._id },
+    { $set: updates },
+    { new: true, runValidators: true, context: 'query' }
+  );
+
+  req.flash('success', 'Updated the profile!');
+  res.redirect('back');
+};
+```
+
+
+## 27 - Password Reset Flow
+
+1. 修改`login.pug`
+
+```jade
+//- views/login.pug
+extends layout
+
+include mixins/_loginForm
+include mixins/_forgotForm
+
+block content
+  .inner
+    +loginForm()
+    +forgotForm()
+
+//- views/mixins/_forgotForm.pug
+mixin forgotForm()
+  form.form(action="/account/forgot" method="POST")
+    h2 I forgot my password!
+    label(for="email") Email
+    input(type="text" name="email")
+    input.button(type="submit" value="send a RESET")
+```
+
+2. 添加 POST `/account/forgot`
+
+```js
+// models/User.js
+const userSchema = new mongoose.Schema({
+  ...
+  resetPasswordToken: String,
+  resetPasswordExpires: Date
+})
+
+// routes/index.js
+router.post('/account/forgot', catchErrors(authController.forgot));
+
+// controllers/authController.js
+const crypto = require('crypto');
+const mongoose = require('mongoose');
+const User = mongoose.model('User');
+
+exports.forgot = async (req, res) => {
+  // 1. See if a user with that email exists
+  const user = await User.findOne({ email: req.body.email });
+  if (!user) {
+    req.flash('error', 'No account with that email exists!');
+    return res.redirect('/login');
+  }
+  // 2. Set reset tokens and expiry on their account
+  user.resetPasswordToken = crypto.randomBytes(20).toString('hex');
+  user.resetPasswordExpires = Date.now() + 3600000; // 1 hour from now
+  await user.save();
+  // 3. Send them an email with the token
+  const resetURL = `http://${req.headers.host}/account/reset/${user.resetPasswordToken}`;
+  req.flash('success', `You have been emailed a password reset link. ${resetURL}`);
+  // 4. redirect to login page
+  res.redirect('/login');
+};
+```
+
+3. 添加 resetURL 页面
+
+```js
+// routes/index.js
+router.get('/account/reset/:token', catchErrors(authController.reset));
+
+// controllers/authController.js
+exports.reset = async (req, res) => {
+  // res.json(req.params);
+  const user = await User.findOne({
+    resetPasswordToken: req.params.token,
+    resetPasswordExpires: { $gt: Date.now() }
+  });
+  if (!user) {
+    req.flash('error', 'Password reset token is invalid or has expired!');
+    return res.redirect('/login');
+  }
+  res.render('reset', { title: 'Reset your password' });
+};
+```
+
+```jade
+//- views/reset.pug
+extends layout
+
+block content
+  .inner
+    form.form(method="POST")
+      h2= title
+      label(for="password") Password
+      input(type="password" name="password")
+      label(for="password-confirm") Confirm Password
+      input(type="password" name="password-confirm")
+      input.button(type="submit" value="Reset your password→")
+```
+
+4. 保存更新的密码
+
+```js
+// routes/index.js
+router.post('/account/reset/:token',
+  authController.confirmPasswords,
+  catchErrors(authController.update)
+);
+
+// controllers/authController.js
+exports.confirmPasswords = (req, res, next) => {
+  if (req.body.password === req.body['password-confirm']) {
+    next(); // keep it going
+    return;
+  }
+  req.flash('error', 'Passwords do not match!');
+  res.redirect('back');
+};
+
+exports.udpate = async (req, res) => {
+  const user = await User.findOne({
+    resetPasswordToken: req.params.token,
+    resetPasswordExpires: { $gt: Date.now() }
+  });
+  if (!user) {
+    req.flash('error', 'Password reset token is invalid or has expired!');
+    return res.redirect('/login');
+  }
+
+  const setPassword = promisify(user.setPassword, user);
+  await setPassword(req.body.password);
+  user.resetPasswordToken = undefined;
+  user.resetPasswordExpires = undefined;
+  const updateUser = await user.save();
+  await req.login(updateUser);
+  req.flash('success', '😛 Nice! Your password has been reset! You are now logged in!');
+  res.redirect('/');
 }
 ```
