@@ -1779,3 +1779,107 @@ exports.udpate = async (req, res) => {
   res.redirect('/');
 }
 ```
+
+
+## 28 - Sending email with Nodejs
+
+1. [mailtrap](https://mailtrap.io)，首先修改`variables.env`中的参数`MAIL_USER``MAIL_POST`
+
+```js
+// handlers/mail.js
+const nodemailer = require('nodemailer');
+const pug = require('pug');
+const juice = require('juice');
+const htmlToText = require('html-to-text');
+const promisify = require('es6-promisify');
+
+const transport = nodemailer.createTransport({
+  host: process.env.MAIL_HOST,
+  port: process.env.MAIL_PORT,
+  auth: {
+    user: process.env.MAIL_USER,
+    pass: process.env.MAIL_PASS
+  }
+});
+
+transport.sendMail({
+  from: 'Wes Bos <wesbos@gmail.com>',
+  to: 'someone@example.com',
+  subject: 'Just trying things out!',
+  html: 'Hey <strong>LOVE</strong> you!',
+  text: 'Hey **LOVE** you!'
+});
+
+// start.js
+// TEMP send email
+require('./handlers/mail');
+```
+
+2. 以上只是测试发出一封邮件，真实的情况是当用户修改密码时，发出邮件
+
+```js
+// handlers/mail.js
+...
+exports.send = async (options) => {
+  const mailOptions = {
+    from: 'Wes Bos <noreply@wesbos.com>',
+    to: options.user.email,
+    subject: options.subject,
+    html: 'This will be filled in later.',
+    text: 'This will also be filled in later.'
+  };
+  const sendMail = promisify(transport.sendMail, transport);
+  return sendMail(mailOptions);
+};
+
+// controllers/authController.js
+const mail = require('../handlers/mail');
+...
+exports.forgot = async (req, res) => {
+  ...
+  // 3.
+  const resetURL = `http://${req.headers.host}/account/reset/${user.resetPasswordToken}`;
+  await mail.send({
+    user,
+    subject: 'Password Reset',
+  });
+  req.flash('success', `You have been emailed a password reset link.`);
+  ...
+}
+```
+
+3. 使用 pug 渲染邮件
+
+```js
+// controllers/authController.js
+exports.forgot = async (req, res) => {
+  ...
+  await mail.send({
+    user,
+    subject: 'Password Reset',
+    resetURL,
+    filename: 'password-reset'
+  })
+}
+
+// handlers/mail.js
+const generateHTML = (filename, options = {}) => {
+  const html = pug.renderFile(`${__dirname}/../views/email/${filename}.pug`, options);
+  const inlined = juice(html);
+  return inlined;
+};
+
+exports.send = async (options) => {
+  const html = generateHTML(options.filename, options);
+  const text = htmlToText.fromString(html);
+
+  const mailOptions = {
+    ...
+    html,
+    text
+  };
+  ...
+};
+```
+
+
