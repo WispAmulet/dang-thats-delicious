@@ -1586,3 +1586,45 @@ router.get('/add',
   storeController.addStore
 );
 ```
+
+
+## 26 - Creating a User Account Edit Screen
+
+1. 创建`/account`页面
+
+```js
+// routes/index.js
+router.get('/account', userController.account);
+
+// controllers/userController.js
+exports.account = (req, res) => {
+  res.render('account', { title: 'Edit Your Account' });
+};
+```
+
+```jade
+//- views/account.pug
+extends layout
+
+block content
+  .inner
+    h2= title
+    form(action="/account" method="POST")
+      label(for="name") Name
+      input(type="text" name="name" value=user.name)
+      label(for="email") Email Address
+      input(type="text" name="email" value=user.email)
+      input.button(type="submit" value="Update My Account")
+```
+
+2. 添加 POST `/account`
+
+```js
+// routes/index.js
+router.post('account', userController.updateAccount);
+
+// controllers/userController.js
+exports.updateAccount = (req, res) => {
+  
+}
+```
