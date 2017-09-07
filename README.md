@@ -1883,3 +1883,54 @@ exports.send = async (options) => {
 ```
 
 
+## 29 - Locking down our application with User Permissions
+
+1. 为商店添加作者属性，用户只能修改属于自己的商店
+
+```js
+// models/Store.js
+const storeSchema = new mongoose.Schema({
+  ...
+  author: {
+    type: mongoose.Schema.ObjectId,
+    ref: 'User',
+    required: 'You must supply an author!'
+  }
+});
+
+// controllers/storeController.js
+exports.createStore = async (req, res) => {
+  req.body.author = req.user._id;
+  ...
+}
+```
+
+2. 进入编辑页面前检查是否是作者
+
+```js
+// controllers/storeController.js
+const confirmOwner = (store, user) => {
+  if (!store.author.equals(user._id)) {
+    throw Error('You must own a store in order to edit it!');
+  }
+};
+
+exports.editStore = async (req, res) => {
+  ...
+  const store = await Store.findOne({ _id: req.params.id });
+  // 2.
+  confirmOwner(store, req.user);
+  ...
+};
+```
+
+3. 创建第二个用户，并创建新的商店。
+
+```jade
+//- views/mixins/_storeCard.pug
+.store__actions
+  if user && store.author.equals(user._id)
+    //-...
+```
+
+
