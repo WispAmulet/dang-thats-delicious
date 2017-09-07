@@ -1934,3 +1934,8 @@ exports.editStore = async (req, res) => {
 ```
 
 
+## 30 - Loading Sample Data
+
+1. 在 Terminal 中运行`npm run sample`，由于暂时还没有 Review 模块，需要先注释掉`load-sample-data.js`中关于 Review 的部分。
+
+
