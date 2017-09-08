@@ -1939,3 +1939,41 @@ exports.editStore = async (req, res) => {
 1. 在 Terminal 中运行`npm run sample`，由于暂时还没有 Review 模块，需要先注释掉`load-sample-data.js`中关于 Review 的部分。
 
 
+## 31 - JSON endpoints and creating MongoDB Indexes
+
+1. 为 Store 创建 index，可以在 MongoDB Compass 中查看
+
+```js
+// models/Store.js
+// Define the indexes
+storeSchema.index({
+  name: 'text',
+  description: 'text'
+});
+```
+
+2. 创建 API，进入如`/api/search/?q=beer`查看结果
+
+```js
+// routes/index.js
+router.get('/api/search', catchErrors(storeController.searchStore));
+
+// controllers/storeController.js
+exports.searchStore = async (req, res) => {
+  const stores = await Store
+    // first find stores that match
+    .find({
+      $text: { $search: req.query.q }
+    }, {
+      score: { $meta: 'textScore' }
+    })
+    // then sort them
+    .sort({
+      score: { $meta: 'textScore' }
+    })
+    // limit to only 5 results
+    .limit(5);
+    res.json(stores);
+};
+```
+

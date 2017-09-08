@@ -61,4 +61,11 @@ router.post('/account/reset/:token',
   catchErrors(authController.udpate)
 );
 
+
+/*
+  API
+*/
+
+router.get('/api/search', catchErrors(storeController.searchStore));
+
 module.exports = router;
