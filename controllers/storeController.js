@@ -100,7 +100,7 @@ exports.getStoresByTag = async (req, res) => {
 };
 
 
-exports.searchStore = async (req, res) => {
+exports.searchStores = async (req, res) => {
   const stores = await Store
     // first find stores that match
     .find({
@@ -115,4 +115,22 @@ exports.searchStore = async (req, res) => {
     // limit to only 5 results
     .limit(5);
     res.json(stores);
+};
+
+exports.mapStores = async (req, res) => {
+  const coordinates = [req.query.lng, req.query.lat].map(parseFloat);
+  const q = {
+    location: {
+      $near: {
+        $geometry: {
+          type: 'Point',
+          coordinates
+        },
+        $maxDistance: 10000 // 10km
+      }
+    }
+  };
+
+  const stores = await Store.find(q).select('slug name description location').limit(10);
+  res.json(stores);
 };

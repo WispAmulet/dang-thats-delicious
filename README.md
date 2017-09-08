@@ -1952,7 +1952,7 @@ storeSchema.index({
 });
 ```
 
-2. 创建 API，进入如`/api/search/?q=beer`查看结果
+2. 创建 search API，进入如`/api/search/?q=beer`查看结果
 
 ```js
 // routes/index.js
@@ -2088,5 +2088,37 @@ searchResults.innerHTML = dompurify.sanitize(searchResultsHTML(res.data));
 ...
 searchResults.innerHTML = dompurify.sanitize(`<div class="search__result">No results for ${this.value} found!</div>`);
 ...
+```
+
+
+## 33 - Creating a Geospatial Ajax Endpoint
+
+1. 创建 map API
+
+```js
+// models/Store.js
+storeSchema.index({ location: '2dsphere' });
+
+// routes/index.js
+router.get('/api/map/near', catchErrors(storeController.mapStores));
+
+// controllers/storeController.js
+exports.mapStores = async (req, res) => {
+  const coordinates = [req.query.lng, req.query.lat].map(parseFloat);
+  const q = {
+    location: {
+      $near: {
+        $geometry: {
+          type: 'Point',
+          coordinates
+        },
+        $maxDistance: 10000 // 10km
+      }
+    }
+  };
+
+  const stores = await Store.find(q).select('slug name description location').limit(10);
+  res.json(stores);
+};
 ```
 
