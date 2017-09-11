@@ -60,6 +60,7 @@ router.post('/account/reset/:token',
   authController.confirmPasswords,
   catchErrors(authController.udpate)
 );
+router.get('/map', storeController.mapPage);
 
 
 /*
@@ -67,6 +68,6 @@ router.post('/account/reset/:token',
 */
 
 router.get('/api/search', catchErrors(storeController.searchStores));
-router.get('/api/map/near', catchErrors(storeController.mapStores));
+router.get('/api/stores/near', catchErrors(storeController.mapStores));
 
 module.exports = router;
