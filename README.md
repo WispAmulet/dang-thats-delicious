@@ -2226,3 +2226,89 @@ function makeMap(mapDiv) {
 
 export default makeMap;
 ```
+
+
+## 35 - Pushing User Data to our API
+
+1. 为`User.js`添加`hearts` field
+
+```js
+const userSchema = new mongoose.Schema({
+  ...
+  hearts: [
+    { type: mongoose.Schema.ObjectId,  ref: 'Store' }
+  ]
+});
+```
+
+2. 修改`views/mixins/_storeCard.pug`
+
+```jade
+//-...
+.store__actions
+  if user
+    .store__action.store__action--heart
+      form.heart(action=`/api/stores/${store._id}/heart` method="POST")
+        button(type="submit" name="heart")
+          != h.icon('heart')
+```
+
+3. 为`/api/stores/${store._id}/heart`创建 routes
+
+```js
+// routes/index.js
+router.post('/api/stores/:id/heart', catchErrors(storeController.heartStore));
+
+// controllers/storeController.js
+exports.heartStore = async (req, res) => {
+  const hearts = req.user.hearts.map(obj => obj.toString());
+  const operator = hearts.includes(req.params.id) ? '$pull' : '$addToSet';
+  const user = await User.findByIdAndUpdate(req.user._id,
+    { [operator]: { hearts: req.params.id } },
+    { new: true }
+  );
+  res.json(user);
+};
+```
+
+4. 继续修改`views/mixins/_storeCard.pug`，为 heart 添加 class
+
+```jade
+form.heart(action=`/api/stores/${store._id}/heart` method="POST")
+  - const heartStrings = user.hearts.map(obj => obj.toString())
+  - const heartClass = heartStrings.includes(store._id.toString()) ? 'heart__button--hearted' : ''
+  button.heart__button(type="submit" name="heart" class=heartClass)
+```
+
+5. 创建`heart.js`
+
+```js
+// public/javascripts/modules/heart.js
+import axios from 'axios';
+import { $ } from './bling';
+
+function ajaxHeart(e) {
+  e.preventDefault();
+  axios
+    .post(this.action)
+    .then(res => {
+      const isHearted = this.heart.classList.toggle('heart__button--hearted');
+      $('.heart-count').textContent = res.data.hearts.length;
+      if (isHearted) {
+        this.heart.classList.add('heart__button--float');
+        setTimeout(() => this.heart.classList.remove('heart__button--float'), 2500);
+      }
+    })
+    .catch(console.error);
+}
+
+export default ajaxHeart;
+
+// public/javascripts/delicious-app.js
+import '../sass/style.scss';
+...
+import ajaxHeart from './modules/heart';
+...
+const heartForms = $$('form.heart');
+heartForms.on('submit', ajaxHeart);
+```
