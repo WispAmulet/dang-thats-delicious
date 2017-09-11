@@ -2333,3 +2333,91 @@ exports.getHearts = async (req, res) => {
   res.render('stores', { title: 'Hearted Stores', stores } )
 };
 ```
+
+
+## 37 - Adding a Reviews Data Model
+
+1. 创建`Review.js`
+
+```js
+// start.js
+require('./models/Review');
+
+// models/Review.js
+const mongoose = require('mongoose');
+mongoose.Promise = global.Promise;
+
+const reviewSchema = new mongoose.Schema({
+  created: {
+    type: Date,
+    default: Date.now
+  },
+  author: {
+    type: mongoose.Schema.ObjectId,
+    ref: 'User',
+    required: 'You must supply an author!'
+  },
+  store: {
+    type: mongoose.Schema.ObjectId,
+    ref: 'Store',
+    required: 'You must supply an store!'
+  },
+  text: {
+    type:String,
+    required: 'Your review must have text!'
+  },
+  rating: {
+    type: Number,
+    min: 1,
+    max: 5
+  }
+});
+
+module.exports = mongoose.model('Review', reviewSchema);
+```
+
+2. 修改`store.pug`
+
+```jade
+//- views/mixins/_reviewForm.pug
+mixin reviewForm(store)
+  form.reviewer(action=`/review/${store._id}` method="POST")
+    textarea(name="text", placeholder="Did you try this place? Have something to say? Leave a review...")
+    .reviewer__meta
+      .reviewer__stars
+        each num in [5, 4, 3, 2, 1]
+          input(type="radio" required id=`star${num}` name="rating" value=num)
+          label(for=`star${num}`) #{num} Stars
+      input.button(type="submit" value="Submit Review 👍")
+
+//- views/store.pug
+include mixins/_reviewForm
+  //-...
+if user
+  +reviewForm(store)
+```
+
+3. 为`review/${store._id}`创建 routes
+
+```js
+// routes/index.js
+const reviewController = require('../controllers/reviewController');
+...
+router.post('/review/:id',
+  authController.isLoggedIn,
+  catchErrors(reviewController.addReview)
+);
+
+// controllers/reviewController.js
+const mongoose = require('mongoose');
+const Review = mongoose.model('Review');
+
+exports.addReview = async (req, res) => {
+  req.body.author = req.user._id;
+  req.body.store = req.params.id;
+  const newReview = new Review(req.body);
+  await newReview.save();
+  req.flash('success', 'Review Saved!');
+  res.redirect('back');
+};
+```
