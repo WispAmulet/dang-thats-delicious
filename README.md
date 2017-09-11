@@ -2312,3 +2312,24 @@ import ajaxHeart from './modules/heart';
 const heartForms = $$('form.heart');
 heartForms.on('submit', ajaxHeart);
 ```
+
+
+## 36 - Displaying our Hearted Stores
+
+1. 为`/hearts`创建 routes
+
+```js
+// routes/index.js
+router.get('/hearts',
+  authController.isLoggedIn,
+  catchErrors(storeController.getHearts)
+);
+
+// controlelrs/storeController.js
+exports.getHearts = async (req, res) => {
+  const stores = await Store.find({
+    _id: { $in: req.user.hearts }
+  });
+  res.render('stores', { title: 'Hearted Stores', stores } )
+};
+```
