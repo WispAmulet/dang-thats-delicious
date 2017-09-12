@@ -2421,3 +2421,69 @@ exports.addReview = async (req, res) => {
   res.redirect('back');
 };
 ```
+
+
+## 38 - Advanced Relationship Population - Displaying Our Reviews
+
+1. 为了展示评论，为`Store.js`创建 Virtual Field
+
+```js
+// models/Store.js
+// 为了在 store.pug 中直接 dump() 出 reviews 的信息，可选
+const storeSchema = new mongoose.Schema({
+  ...
+}, {
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+// find reviews where the store _id property === review store proerty
+storeSchema.virtual('reviews', {
+  ref: 'Review', // what model to link?
+  localField: '_id', // whici field on the store?
+  foreignField: 'store' // which field on the review?
+});
+
+// controllers/storeController.js
+exports.getStoreBySlug = async (req, res, next) => {
+  const store = await Store.findOne({ slug: req.params.slug }).populate('author reviews');
+  ...
+};
+```
+
+2. 修改`store.pug`显示 reviews
+
+```jade
+//- views/store.pug
+include mixins/_review
+
+if store.reviews
+  .reviews
+    each review in store.reviews
+      .review
+        +review(review)
+
+//- views/mixins/_review.pug
+mixin review(review)
+  .review__header
+    .review__author
+      img.avatar(src=review.author.gravatar)
+      p= review.author.name
+    .review__stars(title=`Rated ${review.rating} out of 5 stars`)
+      = `★`.repeat(review.rating)
+      = `☆`.repeat(5 - review.rating)
+    time.review__time(datetime=review.created)= h.moment(review.created).fromNow()
+  .review__body
+    p= review.text
+```
+
+```js
+// models/Review.js
+function autopopulate(next) {
+  this.populate('author');
+  next();
+}
+
+reviewSchema.pre('find', autopopulate);
+reviewSchema.pre('findOne', autopopulate);
+```
