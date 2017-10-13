@@ -2487,3 +2487,49 @@ function autopopulate(next) {
 reviewSchema.pre('find', autopopulate);
 reviewSchema.pre('findOne', autopopulate);
 ```
+
+
+## 39 - Advanced Aggregation
+
+1. 首先为`/top`创建 routes
+
+```js
+// routes/index.js
+router.get('/top', catchErrors(storeController.getTopStores));
+
+// controllers/storeController.js
+exports.getTopStores = async (req, res) => {
+  const stores = Store.getTopStores();
+  res.render('topStores', { title: '★ Top Stores!', stores });
+};
+```
+
+```js
+// models/Store.js
+storeSchema.statics.getTopStores = function () {
+  return this.aggregate([
+    // Lookup Stores and populate their reviews
+    { $lookup: { from: 'reviews', localField: '_id', foreignField: 'store', as: 'reviews' } },
+    // filter for only items that have 2 or more reviews
+    { $match: { 'reviews.1': { $exists: true } } },
+    // add the average reviews field
+    { $project: {
+      photo: '$$ROOT.photo',
+      name: '$$ROOT.name',
+      slug: '$$ROOT.slug',
+      reviews: '$$ROOT.reviews',
+      averageRating: { $avg: '$reviews.rating' }
+    }},
+    // sort it by our new field, highest reviews first
+    { $sort: { averageRating: -1 } },
+    // limit to at most 10
+    { $limit: 10 }
+  ]);
+};
+```
+
+2. 创建`topStores.pug`
+
+```jade
+//- views/topStores.pug
+```
